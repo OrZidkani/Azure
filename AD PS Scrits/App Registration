@@ -1,0 +1,166 @@
+######### Written by Or Zidkani ################
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('
+  Copyright (C) 2021 Or Zidkani
+  All rights reserved.
+ 
+       Or Zidkani
+       
+
+  DISCLAIMER OF WARRANTIES:
+ 
+  THE SOFTWARE PROVIDED HEREUNDER IS PROVIDED ON AN "AS IS" BASIS, WITHOUT
+  ANY WARRANTIES OR REPRESENTATIONS EXPRESS, IMPLIED OR STATUTORY; INCLUDING,
+  WITHOUT LIMITATION, WARRANTIES OF QUALITY, PERFORMANCE, NONINFRINGEMENT,
+  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  NOR ARE THERE ANY
+  WARRANTIES CREATED BY A COURSE OR DEALING, COURSE OF PERFORMANCE OR TRADE
+  USAGE.  FURTHERMORE, THERE ARE NO WARRANTIES THAT THE SOFTWARE WILL MEET
+  YOUR NEEDS OR BE FREE FROM ERRORS, OR THAT THE OPERATION OF THE SOFTWARE
+  WILL BE UNINTERRUPTED.  IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES HOWEVER CAUSED AND ON ANY THEORY OF
+  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ')
+ [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('This script will create an AppRegistration in Azure. 
+
+ The outcome varibles "Client ID, Tenant ID, AppID, ClientSecret are mandatory in order to allow some Apps to send and API reuest to Azure.
+ 
+ Pleasse use with cation and make sure you are fully familiar with Azure and AppRegistration.')
+ 
+ 
+
+ 
+# Set the Execution policy for "RemoteSigned" in order to launch the script
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force
+# Install Azure resource manager cmdlet
+Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+Install-Module -Name az -AllowClobber
+
+try {
+    Get-AzSubscription | Out-Null
+    Write-Host "Already logged in"
+    }
+    catch {
+      Write-Host "Not logged in, transfering to login page"
+      Connect-AzAccount
+    }
+
+
+
+
+$SubIdCount =  Get-AzSubscription| Measure-Object -Line
+$Subid = Get-AzSubscription
+ If ($SubIdCount.lines  -eq '1')  {
+
+  $Subid = Get-AzSubscription
+
+  } Else {
+
+    $linenumber = 1
+$Subid |
+   ForEach-Object {New-Object psObject -Property @{'Subscription ID'= $_.id;};$linenumber ++ } -outvariable choosemenu | out-null
+    
+function Show-Menu
+{
+    param (
+        [string]$Title = 'Subscription Menu'
+    )
+    Clear-Host
+    Write-Host "================ $Title ================"
+
+    $Menu = @{}
+
+    $choosemenu -replace '@.*ID=' -replace '}' | ForEach-Object -Begin {$i = 1} { 
+        Write-Host " $i. $_`  " 
+        $Menu.add("$i",$_)
+        $i++
+    }
+
+    Write-Host "Q: Press 'Q' to quit."
+
+    $SubSelection = Read-Host "Please make a selection"
+
+    if ($SubSelection -eq 'Q') { Return } Else { $Menu.$SubSelection }
+
+}
+$UserSelection = Show-Menu -Title 'Subscription Choose'
+Write-Host "Choosen subscription: $UserSelection
+
+"
+}
+
+
+########Defaults##########
+$DefualtDisplayName = "check-point-cluster"
+$DefualtHomePage = "https://checpointcluster.com/check-point-cluster"
+$DefualtIdentifierUris = "https://checpointcluster.com/check-point-cluster"
+$Defualtrgassigment = "null"
+
+$SubscriptionId = $UserSelection
+Set-AzContext -Subscription $AzureSubscriptionId
+
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('In order to allow Failover, The Checkpoint gateway should get API permission.
+The API permission should only effect the Checkpoint resoure group and not the whole tenat. 
+For this reaseon you will be asked to supply the Checkpoint Resource Group name.')
+
+$rgassigment = $(
+ $rgassigmentselection = read-host 'Please specify you Checkpoint Resource group name ( '$Defualtrgassigment' is default)'
+ if ($rgassigmentselection) {$rgassigmentselection} else {rgassigment}
+)
+
+
+
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('In order to allow Failover, The Checkpoint gateway should get API permission.
+to the whole VNET and Network components in the subscription. 
+For this reaseon you will be asked to supply the network hub Resource Group name.')
+
+$hubrgassigment = $(
+ $hubrgassigmentselection = read-host 'Please specify you NetworkHub Resource group name ( '$Defualthubrgassigment' is default)'
+ if ($hubrgassigmentselection) {$hubrgassigmentselection} else {rgassigment}
+)
+
+
+$DisplayName = $(
+ $DisplayNameselection = read-host 'Please specify Disaplyname ( '$DefualtDisplayName' is default)'
+ if ($DisplayNameselection) {$DisplayNameselection} else {$DefualtDisplayName}
+)
+
+$HomePage = $(
+ $HomePageselection = read-host 'Please specify  HomePage ( '$DefualtHomePage' is default)'
+ if ($HomePageselection) {$HomePageselection} else {$DefualtHomePage}
+)
+
+
+$IdentifierUris = $(
+ $IdentifierUrisselection = read-host 'Please specify Identifier URL ( '$DefualtIdentifierUris' is default)'
+ if ($IdentifierUrisselection) {$IdentifierUrisselection} else {$DefualtIdentifierUris}
+)
+
+$ClientSecret = Read-Host 'Please specify Client Password (It will be necesary later)' -AsSecureString
+
+
+$AzureSubscriptionId = Get-AzSubscription -SubscriptionId $SubscriptionId
+$AppReg = New-AzADApplication -DisplayName $DisplayName -HomePage $HomePage -IdentifierUris  $IdentifierUris -Password $ClientSecret
+$ClientID = $AppReg.ApplicationId.Guid
+New-AzADServicePrincipal -ApplicationId $ClientID
+
+Write-Output 'Waiting for ClientID registration'
+Start-Sleep -Seconds 30 | out-null
+
+###############################Set Contributor role for the application#########################################
+
+###############################Set Contributor role for Checkpoint RG#########################################
+New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $rgassigment -ServicePrincipalName $ClientID
+###############################Set Contributor role for NetworkHUB RG#########################################
+New-AzRoleAssignment -RoleDefinitionName Contributor -ResourceGroupName $hubrgassigment -ServicePrincipalName $ClientID
+###############################Delete Contribtor access for whole subscription#########################################
+Remove-AzRoleAssignment -RoleDefinitionName Contributor -ServicePrincipalName $ClientID
+
+
+#########################################Write out the output##########################################
+Write-Output @{ "Client ID" = $ClientID; "Tenant ID" = $AzureSubscriptionId.TenantID; "Subscription Name" = $AzureSubscriptionId.Name; "AppID" = $AppReg.DisplayName; }
+Write-Output 'Please save those parmateres '
+
+Read-Host "Press Q to close the window"
+

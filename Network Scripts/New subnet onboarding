@@ -1,1 +1,120 @@
-test
+######### Written by Or Zidkani ################
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('
+  Copyright (C) 2021 Or Zidkani
+  All rights reserved.
+ 
+       Or Zidkani
+       
+
+  DISCLAIMER OF WARRANTIES:
+ 
+  THE SOFTWARE PROVIDED HEREUNDER IS PROVIDED ON AN "AS IS" BASIS, WITHOUT
+  ANY WARRANTIES OR REPRESENTATIONS EXPRESS, IMPLIED OR STATUTORY; INCLUDING,
+  WITHOUT LIMITATION, WARRANTIES OF QUALITY, PERFORMANCE, NONINFRINGEMENT,
+  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  NOR ARE THERE ANY
+  WARRANTIES CREATED BY A COURSE OR DEALING, COURSE OF PERFORMANCE OR TRADE
+  USAGE.  FURTHERMORE, THERE ARE NO WARRANTIES THAT THE SOFTWARE WILL MEET
+  YOUR NEEDS OR BE FREE FROM ERRORS, OR THAT THE OPERATION OF THE SOFTWARE
+  WILL BE UNINTERRUPTED.  IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES HOWEVER CAUSED AND ON ANY THEORY OF
+  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ')
+ [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('This script will create a Vnet,Subnet and will add it to exsiting UDR. 
+ The goal is to avoid Human mistakes through this proccess'
+ 
+ 
+
+ 
+# Set the Execution policy for "RemoteSigned" in order to launch the script
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force
+# Install Azure resource manager cmdlet
+Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+Install-Module -Name az -AllowClobber
+
+try {
+    Get-AzSubscription | Out-Null
+    Write-Host "Already logged in"
+    }
+    catch {
+      Write-Host "Not logged in, transfering to login page"
+      Connect-AzAccount
+    }
+
+
+
+
+$SubIdCount =  Get-AzSubscription| Measure-Object -Line
+$Subid = Get-AzSubscription
+ If ($SubIdCount.lines  -eq '1')  {
+
+  $Subid = Get-AzSubscription
+
+  } Else {
+
+    $linenumber = 1
+$Subid |
+   ForEach-Object {New-Object psObject -Property @{'Subscription ID'= $_.id;};$linenumber ++ } -outvariable choosemenu | out-null
+    
+function Show-Menu
+{
+    param (
+        [string]$Title = 'Subscription Menu'
+    )
+    Clear-Host
+    Write-Host "================ $Title ================"
+
+    $Menu = @{}
+
+    $choosemenu -replace '@.*ID=' -replace '}' | ForEach-Object -Begin {$i = 1} { 
+        Write-Host " $i. $_`  " 
+        $Menu.add("$i",$_)
+        $i++
+    }
+
+    Write-Host "Q: Press 'Q' to quit."
+
+    $SubSelection = Read-Host "Please make a selection"
+
+    if ($SubSelection -eq 'Q') { Return } Else { $Menu.$SubSelection }
+
+}
+$UserSelection = Show-Menu -Title 'Subscription Choose'
+Write-Host "Choosen subscription: $UserSelection
+
+"
+}
+
+################Create a new Vnet#########################
+
+$vnet = @{
+    Name = 'testvnet'
+    ResourceGroupName = 'RG-Main-Network'
+    Location = 'NorthEurope'
+    AddressPrefix = '10.50.50.0/24'    
+}
+$virtualNetwork = New-AzVirtualNetwork @vnet
+
+################Create a new Subnet#########################
+
+$subnet = @{
+    Name = 'MySubnet'
+    VirtualNetwork = $virtualNetwork
+    AddressPrefix = '10.50.50.0/25'
+}
+$subnetConfig = Add-AzVirtualNetworkSubnetConfig @subnet
+
+################Assign the subnet to vnet#########################
+$virtualNetwork | Set-AzVirtualNetwork
+
+################Assign VNET route through the Firewall#########################
+$udrname = "UDR-Spokes"
+$RouteTable = Get-AzRouteTable -Name $udrname
+Set-AzRouteConfig -AddressPrefix $vnet.AddressPrefix -Name $vnet.Name -NextHopIpAddress '12.250.1.4' -NextHopType 'VirtualAppliance' -RouteTable $RouteTable | Set-AzRouteTable
+
+################Associate Subnet to UDR#########################
+Set-AzureRmVirtualNetworkSubnetConfig -Name $subnet.Name -VirtualNetwork $subnet.VirtualNetwork -AddressPrefix $subnet.AddressPrefix -RouteTable $RouteTable | Set-AzureRmVirtualNetwork 
+
+

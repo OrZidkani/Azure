@@ -1,7 +1,3 @@
-
-
-
-
 ######### Written by Or Zidkani ################
 [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('
   Copyright (C) 2021 Or Zidkani

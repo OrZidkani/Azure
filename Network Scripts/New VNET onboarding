@@ -1,5 +1,12 @@
 ######### Written by Or Zidkani ################
-[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('
+## DISCLAIMER
+$yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes","Description."
+$no = New-Object System.Management.Automation.Host.ChoiceDescription "&No","Description."
+$cancel = New-Object System.Management.Automation.Host.ChoiceDescription "&Cancel","Description."
+$options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no, $cancel)
+
+$title = "DISCLAIMER"
+$message = "
   Copyright (C) 2021 Or Zidkani
   All rights reserved.
  
@@ -20,11 +27,50 @@
   EXEMPLARY, OR CONSEQUENTIAL DAMAGES HOWEVER CAUSED AND ON ANY THEORY OF
   LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ')
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+$result = $host.ui.PromptForChoice($title, $message, $options, 1)
+switch ($result) {
+  0{
+    Write-Host "Yes"
+  }1{
+    Write-Host "No"
+    Start-Sleep -Seconds 3 | out-null
+exit
+  }2{
+  Write-Host "Cancel"
+   Write-Host "No"
+    Start-Sleep -Seconds 3 | out-null
+  }
+}
 
- [System.Windows.Forms.MessageBox]::Show("This script will create a Vnet,Subnet and will add it to exsiting UDR. 
- The goal is to avoid Human mistakes through this proccess. Please make sure you are familiar with the script","Warning!",[System.Windows.Forms.MessageBoxButtons]::OKCancel,[System.Windows.Forms.MessageBoxIcon]::Warning)
+## Warning
+$yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes","Description."
+$no = New-Object System.Management.Automation.Host.ChoiceDescription "&No","Description."
+$cancel = New-Object System.Management.Automation.Host.ChoiceDescription "&Cancel","Description."
+$options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no, $cancel)
+
+$title = "Warning!"
+$message = "This script will create a Vnet,Subnet and will add it to exsiting UDR. 
+ The goal is to avoid human mistakes through this proccess. Please make sure you are familiar with the script.
+ Wrong useage will break the enviroment."
+$result = $host.ui.PromptForChoice($title, $message, $options, 1)
+switch ($result) {
+  0{
+    Write-Host "Yes"
+  }1{
+    Write-Host "No"
+     Write-Host "No"
+    Start-Sleep -Seconds 3 | out-null
+    
+  }2{
+  Write-Host "Cancel"
+   Write-Host "No"
+    Start-Sleep -Seconds 3 | out-null
+  }
+}
+
+
+
 
  
  #####################################Var##################
@@ -135,9 +181,11 @@ Start-Sleep -Seconds 6 | out-null
 if ( $rangeexist -eq '1' ) { 
 Write-Host -ForegroundColor White -BackgroundColor red 'STOP!!!!' -NoNewline;  Write-Host 'The IP range >>'$resultname' already exsist, If you will continue the proccess you will destroy exsisting VNET.'
 Start-Sleep -Seconds 6 | out-null
+exit
 }elseif ( $nameexist -eq '1' ) {
 Write-Host -ForegroundColor White -BackgroundColor red 'STOP!!!!' -NoNewline;  Write-Host 'The VNET name >> '$resultname2' already exsist, If you will continue the proccess you will destroy exsisting VNET.'
 Start-Sleep -Seconds 6 | out-null
+exit
 } else {
 write-host "VNET Range was not found, You are good to go.
 Deploying VNET..." -ForegroundColor green

@@ -22,10 +22,31 @@
   NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ')
- [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('This script will create a Vnet,Subnet and will add it to exsiting UDR. 
- The goal is to avoid Human mistakes through this proccess'
+
+ [System.Windows.Forms.MessageBox]::Show("This script will create a Vnet,Subnet and will add it to exsiting UDR. 
+ The goal is to avoid Human mistakes through this proccess. Please make sure you are familiar with the script","Warning!",[System.Windows.Forms.MessageBoxButtons]::OKCancel,[System.Windows.Forms.MessageBoxIcon]::Warning)
+
  
- 
+ #####################################Var##################
+#UDR#
+$udrname = "UDR-Spokes"
+#UDR Gateway#
+$udrnexthopgateway = '10.250.1.4'
+
+#VNET#
+$vnet = @{
+    Name = 'testvnet'
+    ResourceGroupName = 'RG-Main-Network'
+    Location = 'NorthEurope'
+    AddressPrefix = '10.50.52.0/24'    
+}
+
+#Subnet#
+$subnet = @{
+    Name = 'MySubnet'
+    VirtualNetwork = $virtualNetwork
+    AddressPrefix = '10.50.52.0/25'
+}
 
  
 # Set the Execution policy for "RemoteSigned" in order to launch the script
@@ -89,64 +110,57 @@ Write-Host "Choosen subscription: $UserSelection
 
 ################Create a new Vnet#########################
 
-$vnet = @{
-    Name = 'testvnet'
-    ResourceGroupName = 'RG-Main-Network'
-    Location = 'NorthEurope'
-    AddressPrefix = '10.50.51.0/24'    
-}
-write-output " Checking for exsiting range "
+
 $vnetprefix = $vnet.AddressPrefix
 $azvnetcheck = Get-AzVirtualNetwork | Where-Object {$_.AddressSpace.AddressPrefixes -like "*$vnetprefix*"}
 if  (-not ([string]::IsNullOrEmpty($azvnetcheck))) {
      $resultname =$azvnetcheck.AddressSpace.AddressPrefixes 
-   $exit = "1"
+   $rangeexist = "1"
 }else {
-"VNET Range was not found, You are good to go."
+  $rangeexist = "0"
 }
 
-write-output " Checking for exsiting VNET name "
+write-output "Checking for exsiting VNET name "
 $vnetname = $vnet.name
 $azvnetnamecheck = Get-AzVirtualNetwork | Where-Object {$_.Name -like "*$vnetname*"}
 if  (-not ([string]::IsNullOrEmpty($azvnetnamecheck))) {
      $resultname2 =$azvnetnamecheck.name
-   $exit = "2"
+$nameexist = "1"
 }else {
-"VNET Name was not found, You are good to go."
+ $nameexist = "0"
 }
 
-if ( $exit -eq '1' ) { 
-Write-host "STOP!!!! The IP range $resultname already exsist, If you will continue the proccess you will destroy exsisting VNET. "
-}elseif ( $exit -eq '2' ) {
-write-host "STOP!!!! The VNET name $resultname2 already exsist, If you will continue the proccess you will destroy exsisting VNET. "
+write-host " Performing overlapping check - Please pay attention to the result! " -ForegroundColor red
+Start-Sleep -Seconds 6 | out-null
+if ( $rangeexist -eq '1' ) { 
+Write-Host -ForegroundColor White -BackgroundColor red 'STOP!!!!' -NoNewline;  Write-Host 'The IP range >>'$resultname' already exsist, If you will continue the proccess you will destroy exsisting VNET.'
+Start-Sleep -Seconds 6 | out-null
+}elseif ( $nameexist -eq '1' ) {
+Write-Host -ForegroundColor White -BackgroundColor red 'STOP!!!!' -NoNewline;  Write-Host 'The VNET name >> '$resultname2' already exsist, If you will continue the proccess you will destroy exsisting VNET.'
+Start-Sleep -Seconds 6 | out-null
 } else {
 write-host "VNET Range was not found, You are good to go.
-Deploying VNET..."
+Deploying VNET..." -ForegroundColor green
+Start-Sleep -Seconds 6 | out-null
 $virtualNetwork = New-AzVirtualNetwork @vnet
-}
-
-
-
-
 
 ################Create a new Subnet#########################
 
-$subnet = @{
-    Name = 'MySubnet'
-    VirtualNetwork = $virtualNetwork
-    AddressPrefix = '10.50.51.0/25'
-}
 $subnetConfig = Add-AzVirtualNetworkSubnetConfig @subnet
 
 ################Assign the subnet to vnet#########################
 $virtualNetwork | Set-AzVirtualNetwork
 
 ################Assign VNET route through the Firewall#########################
-$udrname = "UDR-Spokes"
 $RouteTable = Get-AzRouteTable -Name $udrname
-Set-AzRouteConfig -AddressPrefix $vnet.AddressPrefix -Name $vnet.Name -NextHopIpAddress '12.250.1.4' -NextHopType 'VirtualAppliance' -RouteTable $RouteTable | Set-AzRouteTable
+Set-AzRouteConfig -AddressPrefix $vnet.AddressPrefix -Name $vnet.Name -NextHopIpAddress $udrnexthopgateway -NextHopType 'VirtualAppliance' -RouteTable $RouteTable | Set-AzRouteTable
 
 ################Associate Subnet to UDR#########################
-Set-AzureRmVirtualNetworkSubnetConfig -Name $subnet.Name -VirtualNetwork $subnet.VirtualNetwork -AddressPrefix $subnet.AddressPrefix -RouteTable $RouteTable | Set-AzureRmVirtualNetwork 
+Set-AzVirtualNetworkSubnetConfig  -Name $subnet.Name -VirtualNetwork $subnet.VirtualNetwork -AddressPrefix $subnet.AddressPrefix -RouteTable $RouteTable | Set-AzVirtualNetwork 
+
+
+
+}
+
 
 

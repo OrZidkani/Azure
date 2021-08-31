@@ -1,3 +1,7 @@
+
+
+
+
 ######### Written by Or Zidkani ################
 [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms'); [System.Windows.Forms.MessageBox]::Show('
   Copyright (C) 2021 Or Zidkani
@@ -93,16 +97,48 @@ $vnet = @{
     Name = 'testvnet'
     ResourceGroupName = 'RG-Main-Network'
     Location = 'NorthEurope'
-    AddressPrefix = '10.50.50.0/24'    
+    AddressPrefix = '10.50.51.0/24'    
 }
+write-output " Checking for exsiting range "
+$vnetprefix = $vnet.AddressPrefix
+$azvnetcheck = Get-AzVirtualNetwork | Where-Object {$_.AddressSpace.AddressPrefixes -like "*$vnetprefix*"}
+if  (-not ([string]::IsNullOrEmpty($azvnetcheck))) {
+     $resultname =$azvnetcheck.AddressSpace.AddressPrefixes 
+   $exit = "1"
+}else {
+"VNET Range was not found, You are good to go."
+}
+
+write-output " Checking for exsiting VNET name "
+$vnetname = $vnet.name
+$azvnetnamecheck = Get-AzVirtualNetwork | Where-Object {$_.Name -like "*$vnetname*"}
+if  (-not ([string]::IsNullOrEmpty($azvnetnamecheck))) {
+     $resultname2 =$azvnetnamecheck.name
+   $exit = "2"
+}else {
+"VNET Name was not found, You are good to go."
+}
+
+if ( $exit -eq '1' ) { 
+Write-host "STOP!!!! The IP range $resultname already exsist, If you will continue the proccess you will destroy exsisting VNET. "
+}elseif ( $exit -eq '2' ) {
+write-host "STOP!!!! The VNET name $resultname2 already exsist, If you will continue the proccess you will destroy exsisting VNET. "
+} else {
+write-host "VNET Range was not found, You are good to go.
+Deploying VNET..."
 $virtualNetwork = New-AzVirtualNetwork @vnet
+}
+
+
+
+
 
 ################Create a new Subnet#########################
 
 $subnet = @{
     Name = 'MySubnet'
     VirtualNetwork = $virtualNetwork
-    AddressPrefix = '10.50.50.0/25'
+    AddressPrefix = '10.50.51.0/25'
 }
 $subnetConfig = Add-AzVirtualNetworkSubnetConfig @subnet
 
